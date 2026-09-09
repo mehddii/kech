@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 #[derive(Default)]
 struct Lexer {
     program: &'static str,
@@ -10,8 +12,9 @@ struct Token {
     literal: &'static str,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum TokenType {
-    Function,
+    FUNCTION,
     IDENT,
     LPAREN,
     RPAREN,
@@ -20,7 +23,6 @@ enum TokenType {
     LBRACE,
     RBRACE,
     DEF,
-    FUNCTION,
     NUMBER,
     I32,
     U32,
@@ -34,6 +36,10 @@ enum TokenType {
     EOF,
 }
 
+fn is_char(c: u8) -> bool {
+    b'a' <= c && c <= b'z' || b'A' <= c && c <= b'Z' || c == b'_'
+}
+
 impl Lexer {
     fn feed(&mut self, program: &'static str) {
         self.program = program;
@@ -41,9 +47,24 @@ impl Lexer {
 
     fn current(&mut self) -> Token {
         while self.next < self.program.len() {
-            match self.current {}
-
-            self.advance();
+            match self.program[self.current..=self.current]
+                .chars()
+                .nth(0)
+                .unwrap()
+            {
+                '=' => {
+                    return Token {
+                        token_type: TokenType::EQ,
+                        literal: "=",
+                    };
+                }
+                _ => {
+                    return Token {
+                        token_type: TokenType::EOF,
+                        literal: "",
+                    };
+                }
+            }
         }
 
         return Token {
@@ -59,6 +80,10 @@ impl Lexer {
 
         self.current = self.next;
         self.next += 1;
+    }
+
+    fn is_eof(&self) -> bool {
+        self.next >= self.program.len()
     }
 }
 
@@ -85,7 +110,7 @@ mod tests {
 
         let tokens = [
             Token {
-                token_type: TokenType::Function,
+                token_type: TokenType::FUNCTION,
                 literal: "fct",
             },
             Token {
@@ -286,7 +311,7 @@ mod tests {
             },
         ];
 
-        let lexer = Lexer::default();
+        let mut lexer = Lexer::default();
         lexer.feed(program);
 
         for token in tokens.iter() {
@@ -294,7 +319,7 @@ mod tests {
             lexer.advance();
 
             assert!(!lexer.is_eof());
-            assert_eq!(token.type, current.type);
+            assert_eq!(token.token_type, current.token_type);
             assert_eq!(token.literal, current.literal);
         }
     }
