@@ -1,18 +1,20 @@
-use std::ops::Index;
+use std::collections::HashMap;
 
 #[derive(Default)]
 struct Lexer {
     program: &'static str,
     current: usize,
     next: usize,
+    keywords: HashMap<&'static str, TokenType>,
 }
 
+#[derive(Default, Debug)]
 struct Token {
     token_type: TokenType,
     literal: &'static str,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
 enum TokenType {
     FUNCTION,
     IDENT,
@@ -33,6 +35,7 @@ enum TokenType {
     IF,
     ELSE,
     OR,
+    #[default]
     EOF,
 }
 
@@ -40,37 +43,136 @@ fn is_char(c: u8) -> bool {
     b'a' <= c && c <= b'z' || b'A' <= c && c <= b'Z' || c == b'_'
 }
 
+fn is_num(c: u8) -> bool {
+    b'0' <= c && c <= b'9'
+}
+
 impl Lexer {
+    fn new() -> Lexer {
+        let mut lexer = Lexer::default();
+
+        lexer.keywords = HashMap::from([
+            ("def", TokenType::DEF),
+            ("fct", TokenType::FUNCTION),
+            ("if", TokenType::IF),
+            ("else", TokenType::ELSE),
+            ("or", TokenType::OR),
+            ("i32", TokenType::I32),
+            ("u32", TokenType::U32),
+        ]);
+        lexer
+    }
+
     fn feed(&mut self, program: &'static str) {
         self.program = program;
     }
 
     fn current(&mut self) -> Token {
+        let mut token = Token::default();
+
+        println!("Here 1");
         while self.next < self.program.len() {
             match self.program[self.current..=self.current]
                 .chars()
                 .nth(0)
                 .unwrap()
             {
-                '=' => {
-                    return Token {
-                        token_type: TokenType::EQ,
-                        literal: "=",
-                    };
+                // Single char
+                '{' => {
+                    token.token_type = TokenType::LPAREN;
+                    token.literal = "{";
                 }
-                _ => {
-                    return Token {
-                        token_type: TokenType::EOF,
-                        literal: "",
-                    };
+                '}' => {
+                    token.token_type = TokenType::RPAREN;
+                    token.literal = "}";
+                }
+                '(' => {
+                    token.token_type = TokenType::LBRACE;
+                    token.literal = "(";
+                }
+                ')' => {
+                    token.token_type = TokenType::RBRACE;
+                    token.literal = ")";
+                }
+                '-' => {
+                    token.token_type = TokenType::MINUS;
+                    token.literal = "-";
+                }
+                '+' => {
+                    token.token_type = TokenType::PLUS;
+                    token.literal = "+";
+                }
+                ':' => {
+                    token.token_type = TokenType::COLON;
+                    token.literal = ":";
+                }
+                ';' => {
+                    token.token_type = TokenType::SEMICOLON;
+                    token.literal = ";";
+                }
+
+                // Double char
+                '=' => {
+                    let next = self.peek();
+
+                    if next == '=' {
+                        token.token_type = TokenType::EQ;
+                        token.literal = "==";
+                    } else if is_char(next as u8) {
+                        token.token_type = TokenType::ASSIGN;
+                        token.literal = "=";
+                    }
+                }
+
+                // Multi chars
+                c => {
+                    println!("Here 1");
+                    if is_char(c as u8) {
+                        println!("Here 2");
+                        let word = self.get_word();
+                        println!("Here 2");
+                        println!("{}", word);
+                        token.literal = word;
+                        if self.keywords.contains_key(word) {
+                            token.token_type = self.keywords.get(word).unwrap().clone();
+                        } else {
+                            token.token_type = TokenType::IDENT;
+                        }
+                    } else if is_num(c as u8) {
+                        token.token_type = TokenType::NUMBER;
+                        token.literal = self.get_num();
+                    }
                 }
             }
         }
 
-        return Token {
-            token_type: TokenType::EOF,
-            literal: "",
-        };
+        return token;
+    }
+
+    fn get_num(&mut self) -> &'static str {
+        let start = self.current;
+        while is_num(self.peek() as u8) {
+            self.advance();
+        }
+
+        return &self.program[start..self.next];
+    }
+
+    fn get_word(&mut self) -> &'static str {
+        let start = self.current;
+        while is_char(self.peek() as u8) {
+            self.advance();
+        }
+
+        return &self.program[start..self.next];
+    }
+
+    fn peek(&self) -> char {
+        if self.next >= self.program.len() {
+            return char::default();
+        }
+
+        self.program[self.next..=self.next].chars().nth(0).unwrap()
     }
 
     fn advance(&mut self) {
@@ -311,11 +413,14 @@ mod tests {
             },
         ];
 
-        let mut lexer = Lexer::default();
+        println!("Here 1");
+        let mut lexer = Lexer::new();
         lexer.feed(program);
 
         for token in tokens.iter() {
             let current = lexer.current();
+            println!("{:#?}", current);
+
             lexer.advance();
 
             assert!(!lexer.is_eof());
