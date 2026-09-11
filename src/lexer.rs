@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Default)]
-struct Lexer {
+pub struct Lexer {
     program: &'static str,
     current: usize,
     next: usize,
@@ -9,13 +9,13 @@ struct Lexer {
 }
 
 #[derive(Default, Debug)]
-struct Token {
+pub struct Token {
     token_type: TokenType,
     literal: &'static str,
 }
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
-enum TokenType {
+pub enum TokenType {
     FUNCTION,
     IDENT,
     LPAREN,
@@ -47,8 +47,12 @@ fn is_num(c: u8) -> bool {
     b'0' <= c && c <= b'9'
 }
 
+fn is_space(c: u8) -> bool {
+    c == b'\t' || c == b' ' || c == b'\n'
+}
+
 impl Lexer {
-    fn new() -> Lexer {
+    pub fn new() -> Lexer {
         let mut lexer = Lexer::default();
 
         lexer.keywords = HashMap::from([
@@ -63,15 +67,15 @@ impl Lexer {
         lexer
     }
 
-    fn feed(&mut self, program: &'static str) {
+    pub fn feed(&mut self, program: &'static str) {
         self.program = program;
     }
 
-    fn current(&mut self) -> Token {
+    pub fn current(&mut self) -> Token {
         let mut token = Token::default();
 
-        println!("Here 1");
-        while self.next < self.program.len() {
+        self.consume_space();
+        if self.next <= self.program.len() {
             match self.program[self.current..=self.current]
                 .chars()
                 .nth(0)
@@ -126,12 +130,9 @@ impl Lexer {
 
                 // Multi chars
                 c => {
-                    println!("Here 1");
                     if is_char(c as u8) {
-                        println!("Here 2");
                         let word = self.get_word();
-                        println!("Here 2");
-                        println!("{}", word);
+
                         token.literal = word;
                         if self.keywords.contains_key(word) {
                             token.token_type = self.keywords.get(word).unwrap().clone();
@@ -144,9 +145,16 @@ impl Lexer {
                     }
                 }
             }
+            self.consume_space();
         }
 
         return token;
+    }
+
+    fn consume_space(&mut self) {
+        while is_space(self.next() as u8) {
+            self.advance();
+        }
     }
 
     fn get_num(&mut self) -> &'static str {
@@ -167,6 +175,17 @@ impl Lexer {
         return &self.program[start..self.next];
     }
 
+    fn next(&self) -> char {
+        if self.next >= self.program.len() {
+            return char::default();
+        }
+
+        self.program[self.current..=self.current]
+            .chars()
+            .nth(0)
+            .unwrap()
+    }
+
     fn peek(&self) -> char {
         if self.next >= self.program.len() {
             return char::default();
@@ -175,8 +194,8 @@ impl Lexer {
         self.program[self.next..=self.next].chars().nth(0).unwrap()
     }
 
-    fn advance(&mut self) {
-        if self.next >= self.program.len() {
+    pub fn advance(&mut self) {
+        if self.next > self.program.len() {
             return;
         }
 
@@ -184,8 +203,8 @@ impl Lexer {
         self.next += 1;
     }
 
-    fn is_eof(&self) -> bool {
-        self.next >= self.program.len()
+    pub fn is_eof(&self) -> bool {
+        self.next > self.program.len()
     }
 }
 
@@ -205,7 +224,7 @@ mod tests {
             if n == 0 or n == 1 {
                 n
             } else {
-                n + fibo(n - 1)
+                fibo(n - 1) + fibo(n - 2)
             }
         }
         ";
@@ -377,14 +396,6 @@ mod tests {
             },
             Token {
                 token_type: TokenType::IDENT,
-                literal: "n",
-            },
-            Token {
-                token_type: TokenType::PLUS,
-                literal: "+",
-            },
-            Token {
-                token_type: TokenType::IDENT,
                 literal: "fibo",
             },
             Token {
@@ -408,19 +419,48 @@ mod tests {
                 literal: ")",
             },
             Token {
+                token_type: TokenType::PLUS,
+                literal: "+",
+            },
+            Token {
+                token_type: TokenType::IDENT,
+                literal: "fibo",
+            },
+            Token {
+                token_type: TokenType::LPAREN,
+                literal: "(",
+            },
+            Token {
+                token_type: TokenType::IDENT,
+                literal: "n",
+            },
+            Token {
+                token_type: TokenType::MINUS,
+                literal: "-",
+            },
+            Token {
+                token_type: TokenType::NUMBER,
+                literal: "2",
+            },
+            Token {
+                token_type: TokenType::RPAREN,
+                literal: ")",
+            },
+            Token {
+                token_type: TokenType::RBRACE,
+                literal: "}",
+            },
+            Token {
                 token_type: TokenType::RBRACE,
                 literal: "}",
             },
         ];
 
-        println!("Here 1");
         let mut lexer = Lexer::new();
         lexer.feed(program);
 
         for token in tokens.iter() {
             let current = lexer.current();
-            println!("{:#?}", current);
-
             lexer.advance();
 
             assert!(!lexer.is_eof());
