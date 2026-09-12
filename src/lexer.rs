@@ -83,19 +83,19 @@ impl Lexer {
             {
                 // Single char
                 '{' => {
-                    token.token_type = TokenType::LPAREN;
+                    token.token_type = TokenType::LBRACE;
                     token.literal = "{";
                 }
                 '}' => {
-                    token.token_type = TokenType::RPAREN;
+                    token.token_type = TokenType::RBRACE;
                     token.literal = "}";
                 }
                 '(' => {
-                    token.token_type = TokenType::LBRACE;
+                    token.token_type = TokenType::LPAREN;
                     token.literal = "(";
                 }
                 ')' => {
-                    token.token_type = TokenType::RBRACE;
+                    token.token_type = TokenType::RPAREN;
                     token.literal = ")";
                 }
                 '-' => {
@@ -122,7 +122,8 @@ impl Lexer {
                     if next == '=' {
                         token.token_type = TokenType::EQ;
                         token.literal = "==";
-                    } else if is_char(next as u8) {
+                        self.advance();
+                    } else {
                         token.token_type = TokenType::ASSIGN;
                         token.literal = "=";
                     }
@@ -168,7 +169,7 @@ impl Lexer {
 
     fn get_word(&mut self) -> &'static str {
         let start = self.current;
-        while is_char(self.peek() as u8) {
+        while is_char(self.peek() as u8) || is_num(self.peek() as u8) {
             self.advance();
         }
 
